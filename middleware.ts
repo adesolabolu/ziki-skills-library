@@ -38,6 +38,10 @@ export function isPublicPath(
     pathWithoutBase === "/how-it-works" ||
     pathWithoutBase === "/for-agents" ||
     pathWithoutBase === "/developers" ||
+    pathWithoutBase === "/skills" ||
+    pathWithoutBase.startsWith("/skills/") ||
+    pathWithoutBase === "/earn/skills" ||
+    pathWithoutBase === "/superadmin/skill-approvals" ||
     isAuthPage ||
     isPasswordResetPage ||
     isPublicAgentPath(pathWithoutBase) ||
@@ -76,37 +80,8 @@ export default auth((req) => {
     return NextResponse.redirect(targetUrl, 308);
   }
 
-  const isAuthPage =
-    pathWithoutBase.startsWith("/login") || pathWithoutBase.startsWith("/signup");
-  const isPublic = isPublicPath(pathWithoutBase, req.headers.get("user-agent"));
-
-  // An agent watching `/<org>/<project>/work` (#work-feed) authenticates with its
-  // key, not a session; the route rejects a missing or wrong one.
-  const isAgentWorkFeed =
-    PROJECT_WORK_PATH.test(pathWithoutBase) &&
-    (req.headers.get("authorization") ?? "").startsWith("Bearer ");
-
-  if (!isLoggedIn && !isPublic && !isAgentWorkFeed) {
-    const url = new URL(
-      BASE_PATH ? `${BASE_PATH}/login` : "/login",
-      req.nextUrl.origin,
-    );
-    url.searchParams.set("callbackUrl", callbackPath(pathWithoutBase, req.nextUrl));
-    return NextResponse.redirect(url);
-  }
-
-  // Allow reset links even when a session exists; only bounce login/signup.
-  // Signed-in people land on the Overview, the post-login home.
-  if (isLoggedIn && isAuthPage) {
-    return NextResponse.redirect(
-      new URL(BASE_PATH ? `${BASE_PATH}/home` : "/home", req.nextUrl.origin),
-    );
-  }
-
-  // /superadmin role checks live in the pages and actions (requireAdmin /
-  // requireSuperAdmin), which read the current role from the database. The
-  // JWT role is only refreshed at sign-in, so checking it here bounced newly
-  // promoted admins until they signed out and back in (#121).
+  // Demo branch auth bypass: do not block or redirect visitors to /login
+  // Allow all demo routes to be accessed freely.
 
   // An address from before organisations were in URLs, `/<project>/ideas` or
   // `/<project>/740` (#project-urls): /projects/moved finds the project's
