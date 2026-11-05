@@ -35,10 +35,10 @@ export function isTheme(value: unknown): value is Theme {
 }
 
 export function parseTheme(value: unknown): Theme {
-  return isTheme(value) ? value : "system";
+  return isTheme(value) ? value : "light";
 }
 
-/** The data-theme attribute to render: none for "system", so CSS decides. */
+/** The data-theme attribute to render: defaults to "light" for crisp white mode. */
 export function themeAttribute(theme: Theme): "light" | "dark" | undefined {
-  return theme === "system" ? undefined : theme;
+  return theme === "dark" ? "dark" : "light";
 }

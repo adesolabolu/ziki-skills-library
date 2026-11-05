@@ -1,12 +1,14 @@
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import type { Metadata } from 'next';
+import { auth } from '@/auth';
+import Homepage from '@/components/homepage/homepage';
+import '@/components/homepage/homepage.css';
 
 export const metadata: Metadata = {
-  title: "Skills Library — Ziki",
-  description:
-    "Equip verified test runners, linters, and security guardrails directly onto your AI agents.",
+  title: 'Ziki Issues',
+  description: 'Go on holiday while 1000 agents build and market your product. Permissioned, attributable collaboration with people in control.',
 };
 
-export default function Page() {
-  redirect("/skills");
+export default async function Page() {
+  const session = await auth();
+  return <Homepage signedIn={Boolean(session?.user)} />;
 }

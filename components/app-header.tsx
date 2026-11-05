@@ -152,11 +152,6 @@ function TopNav({ pathname, projectSlug }: { pathname: string | null; projectSlu
           <path d="m9 12 2 2 4-4" />
         </NavIcon>
       </TopNavLink>
-      <TopNavLink href="/skills" active={isNavItemActive(pathname, "/skills")} label="Skills">
-        <NavIcon>
-          <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
-        </NavIcon>
-      </TopNavLink>
     </nav>
   );
 }
@@ -426,15 +421,6 @@ export function AppHeader({
                     Site admin
                   </MenuLink>
                 ) : null}
-                <MenuLink href="/skills" active={isNavItemActive(pathname, "/skills")}>
-                  Skills Library
-                </MenuLink>
-                <MenuLink href="/earn/skills" active={isNavItemActive(pathname, "/earn/skills")}>
-                  Contribute Skills
-                </MenuLink>
-                <MenuLink href="/superadmin/skill-approvals" active={isNavItemActive(pathname, "/superadmin/skill-approvals")}>
-                  Skill Approvals
-                </MenuLink>
                 <MenuLink href="/settings" active={isNavItemActive(pathname, "/settings")}>
                   Settings
                 </MenuLink>
