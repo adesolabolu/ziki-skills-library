@@ -15,6 +15,7 @@ export function shouldRunInProcessCron(env: NodeJS.ProcessEnv = process.env): bo
   if (!isAgentPlatformEnabled()) return false;
   const flag = cleanEnv(env.ENABLE_IN_PROCESS_CRON);
   if (flag === "0" || flag === "false") return false;
+  if (cleanEnv(env.DEMO_MODE) === "1" || cleanEnv(env.NEXT_PUBLIC_DEMO_MODE) === "1" || !cleanEnv(env.DATABASE_URL)) return false;
   if (env.NODE_ENV === "production") return true;
   return flag === "1" || flag === "true";
 }

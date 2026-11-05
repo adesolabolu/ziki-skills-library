@@ -76,13 +76,14 @@ export default async function AppLayout({
   }
 
   const user = await requireUser();
+  const isDemo = user.id === "cmw3v26df0h3hnx01svojwx6k" || process.env.DEMO_MODE === "1" || process.env.NEXT_PUBLIC_DEMO_MODE === "1";
   // Earn (#earn-landing): "Put your agent to work" is a page of its own, for someone who has just
   // arrived to earn: no header, agents bar or footer around it. It stops being one once an agent is connected.
   const requestPath = (await headers()).get("x-ziki-path") ?? "";
   // The first time someone opens an earn page in a browser, new account or old: a note that the $5 is in.
-  const welcomeNotice = isEarnPath(requestPath) ? await showEarnWelcome(user.id).catch(() => false) : false;
+  const welcomeNotice = isEarnPath(requestPath) && !isDemo ? await showEarnWelcome(user.id).catch(() => false) : false;
   if (isEarnLandingPath(requestPath) || isEarnConnectPath(requestPath)) {
-    const connected = await prisma.agent.findFirst({ where: earnAgentWhere(user.id), select: { id: true } }).catch(() => null);
+    const connected = !isDemo ? await prisma.agent.findFirst({ where: earnAgentWhere(user.id), select: { id: true } }).catch(() => null) : null;
     if (!connected || isEarnConnectPath(requestPath)) {
       return (
         <div data-app-shell="" className="min-h-dvh bg-zk-bg">
@@ -101,81 +102,87 @@ export default async function AppLayout({
   let activeTenantId: string | null = null;
   let tenantId: string | null = null;
   let membershipRole: OrganizationRole | null = null;
-  try {
-    tenantId = await currentTenantIdFor(user.id);
-    activeTenantId = tenantId;
-    const memberships = await tenantsForUser(prisma, user.id, user.role);
-    membershipRole = memberships.find((tenant) => tenant.id === tenantId)?.role ?? null;
-    workspaces = memberships
-      .filter((tenant) => tenant.archivedAt === null)
-      .map((tenant) => ({ id: tenant.id, name: tenant.name, slug: tenant.slug }));
-  } catch (error) {
-    console.error("[layout] workspace context failed", error);
-  }
-  // For links on pages whose URL names no project yet (#project-urls).
-  const defaultProjectSlug = await firstProjectRefFor(user.id).catch(() => null);
-  // A missing Notification table must not take down every signed-in page.
+  let defaultProjectSlug: Awaited<ReturnType<typeof firstProjectRefFor>> = null;
   let unreadCount = 0;
-  try {
-    // Cached per user and expired by every write that changes it (#317), so
-    // ordinary navigation doesn't pay for a count query.
-    unreadCount = await getUnreadCount(user.id);
-  } catch (error) {
-    console.error("[layout] notification count failed", error);
-  }
-
   let pendingEscalationsCount = 0;
   let dockAgents: DockAgent[] = [];
-  // Members of this workspace, for the Leaderboard link: nobody ranks against no one. Null when it couldn't be read.
   let memberCount: number | null = null;
-  // Earn is a place of its own: on an earn page the agents bar shows the Earn workspace's agents, not the
-  // ones in the person's other workspaces.
-  const dockTenantId = isEarnPath(requestPath) ? ((await earnWorkspace().catch(() => null))?.id ?? null) : tenantId;
-  if (tenantId) {
-    try {
-      pendingEscalationsCount = await countPendingEscalations(user.id, tenantId);
-    } catch (error) {
-      console.error("[layout] pending escalations count failed", error);
-    }
-    try {
-      memberCount = await prisma.membership.count({ where: { tenantId } });
-    } catch (error) {
-      console.error("[layout] member count failed", error);
-    }
-    try {
-      const agents = dockTenantId ? await loadOwnAgents({ userId: user.id, tenantId: dockTenantId }) : [];
-      // #710: what each agent earned, from the point entries its work wrote.
-      const ids = agents.map((agent) => agent.id);
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-      const [earned, activity, pending] = await Promise.all([
-        agentEarnings(prisma, dockTenantId ?? tenantId, ids),
-        agentActivity(prisma, dockTenantId ?? tenantId, ids, startOfToday),
-        prisma.agentRequest.groupBy({ by: ["agentId"], where: { agentId: { in: ids }, doneAt: null }, _count: { _all: true } }),
-      ]);
-      const pendingBy = new Map(pending.map((row) => [row.agentId, row._count._all]));
-      dockAgents = agents.map((agent) => ({ id: agent.id, name: agent.name, username: agent.username, avatar: agent.avatar, status: agent.status, activity: agent.activity, issue: agent.issue, question: agent.question, earnedPoints: earned.get(agent.id) ?? 0, ...(activity.get(agent.id) ?? { bids: 0, comments: 0, pointsToday: 0 }), pendingRequests: pendingBy.get(agent.id) ?? 0 }));
-    } catch (error) {
-      console.error("[layout] agents failed", error);
-    }
-  }
-
-  // Earn (#earn-drafts): the balance and Withdraw are for the earn pages only. Everywhere else, Ideas included,
-  // the app looks as it always does, even for someone who is in the Earn workspace.
-  const earnSample = isEarnPath(requestPath) ? await earnBalanceFor(user.id).catch(() => null) : null;
-  // On the earn pages the agent bar shows what they have earned, the same amount as the header.
-  if (earnSample) dockAgents = dockAgents.map((agent) => ({ ...agent, earnedPoints: earnSample.earned }));
-
-  // #287: one primary-key read; a failure leaves shortcuts on, the default.
+  let earnSample: Awaited<ReturnType<typeof earnBalanceFor>> | null = null;
   let shortcutsEnabled = true;
-  try {
-    const prefs = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { keyboardShortcuts: true },
-    });
-    shortcutsEnabled = prefs?.keyboardShortcuts ?? true;
-  } catch (error) {
-    console.error("[layout] shortcut setting failed", error);
+
+  if (!isDemo) {
+    try {
+      tenantId = await currentTenantIdFor(user.id);
+      activeTenantId = tenantId;
+      const memberships = await tenantsForUser(prisma, user.id, user.role);
+      membershipRole = memberships.find((tenant) => tenant.id === tenantId)?.role ?? null;
+      workspaces = memberships
+        .filter((tenant) => tenant.archivedAt === null)
+        .map((tenant) => ({ id: tenant.id, name: tenant.name, slug: tenant.slug }));
+    } catch (error) {
+      console.error("[layout] workspace context failed", error);
+    }
+    // For links on pages whose URL names no project yet (#project-urls).
+    defaultProjectSlug = await firstProjectRefFor(user.id).catch(() => null);
+    // A missing Notification table must not take down every signed-in page.
+    try {
+      // Cached per user and expired by every write that changes it (#317), so
+      // ordinary navigation doesn't pay for a count query.
+      unreadCount = await getUnreadCount(user.id);
+    } catch (error) {
+      console.error("[layout] notification count failed", error);
+    }
+
+    // Members of this workspace, for the Leaderboard link: nobody ranks against no one. Null when it couldn't be read.
+    // Earn is a place of its own: on an earn page the agents bar shows the Earn workspace's agents, not the
+    // ones in the person's other workspaces.
+    const dockTenantId = isEarnPath(requestPath) ? ((await earnWorkspace().catch(() => null))?.id ?? null) : tenantId;
+    if (tenantId) {
+      try {
+        pendingEscalationsCount = await countPendingEscalations(user.id, tenantId);
+      } catch (error) {
+        console.error("[layout] pending escalations count failed", error);
+      }
+      try {
+        memberCount = await prisma.membership.count({ where: { tenantId } });
+      } catch (error) {
+        console.error("[layout] member count failed", error);
+      }
+      try {
+        const agents = dockTenantId ? await loadOwnAgents({ userId: user.id, tenantId: dockTenantId }) : [];
+        // #710: what each agent earned, from the point entries its work wrote.
+        const ids = agents.map((agent) => agent.id);
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const [earned, activity, pending] = await Promise.all([
+          agentEarnings(prisma, dockTenantId ?? tenantId, ids),
+          agentActivity(prisma, dockTenantId ?? tenantId, ids, startOfToday),
+          prisma.agentRequest.groupBy({ by: ["agentId"], where: { agentId: { in: ids }, doneAt: null }, _count: { _all: true } }),
+        ]);
+        const pendingBy = new Map(pending.map((row) => [row.agentId, row._count._all]));
+        dockAgents = agents.map((agent) => ({ id: agent.id, name: agent.name, username: agent.username, avatar: agent.avatar, status: agent.status, activity: agent.activity, issue: agent.issue, question: agent.question, earnedPoints: earned.get(agent.id) ?? 0, ...(activity.get(agent.id) ?? { bids: 0, comments: 0, pointsToday: 0 }), pendingRequests: pendingBy.get(agent.id) ?? 0 }));
+      } catch (error) {
+        console.error("[layout] agents failed", error);
+      }
+    }
+
+    // Earn (#earn-drafts): the balance and Withdraw are for the earn pages only. Everywhere else, Ideas included,
+    // the app looks as it always does, even for someone who is in the Earn workspace.
+    earnSample = isEarnPath(requestPath) ? await earnBalanceFor(user.id).catch(() => null) : null;
+    // On the earn pages the agent bar shows what they have earned, the same amount as the header.
+    const currentSample = earnSample;
+    if (currentSample) dockAgents = dockAgents.map((agent) => ({ ...agent, earnedPoints: currentSample.earned }));
+
+    // #287: one primary-key read; a failure leaves shortcuts on, the default.
+    try {
+      const prefs = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { keyboardShortcuts: true },
+      });
+      shortcutsEnabled = prefs?.keyboardShortcuts ?? true;
+    } catch (error) {
+      console.error("[layout] shortcut setting failed", error);
+    }
   }
 
   return (

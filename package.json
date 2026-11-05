@@ -3,9 +3,9 @@
   "version": "0.1.25",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3001",
-    "build": "prisma generate && next build --webpack",
-    "start": "next start -p ${PORT:-3000}",
+    "dev": "node init && next dev --port 3001",
+    "build": "node init && prisma generate && next build --webpack",
+    "start": "node init && next start -p ${PORT:-3000}",
     "lint": "eslint --cache --cache-location node_modules/.cache/eslint/",
     "typecheck": "tsc --noEmit",
     "check": "node scripts/verify.mjs ready",
