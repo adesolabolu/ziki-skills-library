@@ -1,11 +1,11 @@
 {
   "name": "issue-tracker",
-  "version": "0.1.86",
+  "version": "0.1.87",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3001",
-    "build": "prisma generate && next build --webpack",
-    "start": "node scripts/start-standalone.mjs",
+    "dev": "node init && next dev --port 3001",
+    "build": "node init && prisma generate && next build --webpack",
+    "start": "node init && node scripts/start-standalone.mjs",
     "lint": "eslint --cache --cache-location node_modules/.cache/eslint/",
     "typecheck": "tsc --noEmit",
     "check": "node scripts/verify.mjs ready",

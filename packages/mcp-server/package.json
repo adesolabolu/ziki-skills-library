@@ -5,15 +5,21 @@
   "type": "module",
   "private": true,
   "license": "PolyForm-Strict-1.0.0",
-  "bin": { "ziki-mcp": "dist/index.js" },
+  "bin": {
+    "ziki-mcp": "dist/index.js"
+  },
   "main": "dist/server.js",
-  "files": ["dist"],
-  "engines": { "node": ">=22" },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node init && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "node dist/index.js"
+    "start": "node init && node dist/index.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
