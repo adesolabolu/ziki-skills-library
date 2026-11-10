@@ -16,10 +16,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "node init && tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "node init && node dist/index.js"
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
